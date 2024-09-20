@@ -8,6 +8,52 @@ For simplicity, we will make it requirement that the web-server accepts the GET 
 
 Preferably generate a dashboard (maybe grafana dashboard?).
 
+
+VM setup
+- bridged
+- docker & stuff installed
+
+(from the blog post) First, we create an L2 ipvlan network to launch containers into. The containers will be in the same 192.168.0.0/24 network as the VM.
+```
+# inside the vm
+docker network create -d ipvlan \
+    --subnet=192.168.0.0/24 \
+    --gateway=192.168.0.1 \
+    -o parent=enp0s3 ipvlan_l2
+```
+enp0s3 is interface in vm
+
+# Build container image
+docker build -t tc_htb_demo .
+
+# Launch containers (in separate terminals)
+docker run -it --name container1 --rm --network ipvlan_l2 --ip=192.168.0.11 tc_htb_demo
+docker run -it --name container2 --rm --network ipvlan_l2 --ip=192.168.0.12 tc_htb_demo
+docker run -it --name container3 --rm --network ipvlan_l2 --ip=192.168.0.13 tc_htb_demo
+```
+
+
+Setup iperf3 server on main host (not vm)
+```
+iperf3 -s -p 5204
+iperf3 -s -p 5205
+iperf3 -s -p 5206
+```
+
+```
+# container 1 (192.168.0.11)
+iperf3 -c 192.168.0.131 -p 5204
+
+# container 2 (192.168.0.12)
+iperf3 -c 192.168.0.131 -p 5205
+
+# container 3 (192.168.0.13)
+iperf3 -c 192.168.0.131 -p 5206
+
+```
+
+
+
 ## Input
 - source & dockerfile to build the web server
 
@@ -22,3 +68,4 @@ Preferably generate a dashboard (maybe grafana dashboard?).
 - `tc` is a thing
 - `iperf3` is a thing
 - network manipulation on container is not straightforward
+- netcat has two installation candidate: netcat-traditional & netcat-openbsd, what's the difference?
